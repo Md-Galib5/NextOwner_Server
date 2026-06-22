@@ -35,6 +35,18 @@ async function run() {
     const database = client.db("nextowner");
     const productsCollection = database.collection("products");
 
+app.get("/api/products", async (req, res) => {
+
+    const query = {};
+    if (req.query.userId) {
+      query["sellerInfo.userId"] = req.query.userId.trim();
+    }
+    if (req.query.status) {
+      query.status = req.query.status.trim();
+    }
+    const result = await productsCollection.find(query).toArray();
+    res.json(result);
+});
 
     app.post("/api/products", async (req, res) => {
   try {
