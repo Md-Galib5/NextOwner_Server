@@ -1,84 +1,250 @@
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const {
+  MongoClient,
+  ServerApiVersion,
+  ObjectId,
+} = require("mongodb");
 
-const express = require('express')
-const cors = require('cors');
-const app = express()
-const port = 8080
+const express = require("express");
+const cors = require("cors");
+require("dotenv").config();
 
-require('dotenv').config();
+const app = express();
+const port = 8080;
+
 app.use(cors());
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
+app.get("/", (req, res) => {
+  res.send("NextOwner API Running...");
+});
 
+const uri = process.env.MONGO_DB_URI;
 
-
-
-const uri = process.env.MONGO_DB_URI
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
-  }
+  },
 });
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
     const database = client.db("nextowner");
+
+    const usersCollection = database.collection("user");
     const productsCollection = database.collection("products");
 
-app.get("/api/products", async (req, res) => {
 
-    const query = {};
-    if (req.query.userId) {
-      query["sellerInfo.userId"] = req.query.userId.trim();
-    }
-    if (req.query.status) {
-      query.status = req.query.status.trim();
-    }
-    const result = await productsCollection.find(query).toArray();
-    res.json(result);
+
+    app.get("/api/users/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const user = await usersCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!user) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found",
+          });
+        }
+
+        res.json(user);
+      } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+
+app.get("/api/users/by-email/:email", async (req, res) => {
+  const user = await usersCollection.findOne({
+    email: req.params.email,
+  });
+
+  res.json(user);
 });
+
+    app.patch("/api/users/:id/seller-profile", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        const {
+          phone,
+          location,
+          photo,
+          status = "active",
+        } = req.body;
+
+        if (!phone || !location || !photo) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Phone, location and profile photo are required",
+          });
+        }
+
+        const result = await usersCollection.updateOne(
+          {
+            _id: new ObjectId(id),
+          },
+          {
+            $set: {
+              phone,
+              location,
+              photo,
+              status,
+              role: "seller",
+              sellerProfileCompleted: true,
+            },
+          }
+        );
+
+        res.json({
+          success: true,
+          modifiedCount: result.modifiedCount,
+        });
+      } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+
+    app.get("/api/products", async (req, res) => {
+      try {
+        const query = {};
+
+        if (req.query.userId) {
+          query["sellerInfo.userId"] =
+            req.query.userId.trim();
+        }
+
+        if (req.query.status) {
+          query.status = req.query.status.trim();
+        }
+
+        const result = await productsCollection
+          .find(query)
+          .sort({
+            createdAt: -1,
+          })
+          .toArray();
+
+        res.json(result);
+      } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
 
     app.post("/api/products", async (req, res) => {
-  try {
-    const products = req.body;
-    const result = await productsCollection.insertOne(products);
+      try {
+        const product = req.body;
 
-    res.json({
-      success: true,
-      insertedId: result.insertedId.toString(),
+        const result =
+          await productsCollection.insertOne(product);
+
+        res.json({
+          success: true,
+          insertedId: result.insertedId.toString(),
+        });
+      } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
+
+
+    app.delete("/api/products/:id", async (req, res) => {
+      try {
+        const result =
+          await productsCollection.deleteOne({
+            _id: new ObjectId(req.params.id),
+          });
+
+        res.json({
+          success: true,
+          deletedCount: result.deletedCount,
+        });
+      } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+
+    app.patch("/api/products/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const updatedData = req.body;
+
+        const result =
+          await productsCollection.updateOne(
+            {
+              _id: new ObjectId(id),
+            },
+            {
+              $set: updatedData,
+            }
+          );
+
+        res.json({
+          success: true,
+          modifiedCount: result.modifiedCount,
+        });
+      } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    await client.db("admin").command({
+      ping: 1,
+    });
+
+    console.log(
+      "✅ Connected to MongoDB Successfully"
+    );
   } catch (error) {
-    console.error("Insert product error:", error);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+    console.error(error);
   }
 }
-run().catch(console.dir);
 
-
-
+run();
 
 app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
-})
+  console.log(
+    `🚀 NextOwner Server running on port ${port}`
+  );
+});
