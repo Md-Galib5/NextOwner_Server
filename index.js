@@ -1,9 +1,4 @@
-const {
-  MongoClient,
-  ServerApiVersion,
-  ObjectId,
-} = require("mongodb");
-
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
@@ -35,144 +30,402 @@ async function run() {
     const database = client.db("nextowner");
     const usersCollection = database.collection("user");
     const productsCollection = database.collection("products");
+    const wishlistCollection = database.collection("wishlist");
 
-app.get("/api/products/seller/:email", async (req, res) => {
-  try {
-    const email = req.params.email;
-    const { search = "", category = "all", sort = "latest" } = req.query;
+    // USERS
+    app.get("/api/users/by-email/:email", async (req, res) => {
+      try {
+        const email = decodeURIComponent(req.params.email);
 
-    const query = {
-      "sellerInfo.email": email,
-    };
+        const user = await usersCollection.findOne({
+          email: { $regex: `^${email}$`, $options: "i" },
+        });
 
-    if (category !== "all") {
-      query.category = category;
-    }
-
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { category: { $regex: search, $options: "i" } },
-        { condition: { $regex: search, $options: "i" } },
-      ];
-    }
-
-    let sortOption = { createdAt: -1 };
-
-    if (sort === "price-low") {
-      sortOption = { price: 1 };
-    }
-
-    if (sort === "price-high") {
-      sortOption = { price: -1 };
-    }
-
-    const products = await productsCollection
-      .find(query)
-      .sort(sortOption)
-      .toArray();
-
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
+        res.json(user || null);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
-  }
-});
 
-    
-app.get("/api/products", async (req, res) => {
-  try {
-    const { search = "", category = "all", sort = "latest" } = req.query;
+    app.get("/api/users/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
 
-    const query = {};
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user id",
+          });
+        }
 
-    if (category !== "all") {
-      query.category = category;
-    }
+        const user = await usersCollection.findOne({
+          _id: new ObjectId(id),
+        });
 
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { category: { $regex: search, $options: "i" } },
-        { "sellerInfo.name": { $regex: search, $options: "i" } },
-      ];
-    }
-
-    let sortOption = { createdAt: -1 };
-
-    if (sort === "price-low") {
-      sortOption = { price: 1 };
-    }
-
-    if (sort === "price-high") {
-      sortOption = { price: -1 };
-    }
-
-    const products = await productsCollection
-      .find(query)
-      .sort(sortOption)
-      .toArray();
-
-    res.json(products);
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
+        res.json(user || null);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
-  }
-});
 
+    app.patch("/api/users/:id/seller-profile", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const data = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user id",
+          });
+        }
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              ...data,
+              sellerProfileCompleted: true,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: true,
+          modifiedCount: result.modifiedCount,
+          message: "Seller profile updated",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.patch("/api/users/:id/buyer-profile", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const data = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user id",
+          });
+        }
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              ...data,
+              buyerProfileCompleted: true,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: true,
+          modifiedCount: result.modifiedCount,
+          message: "Buyer profile updated",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // PRODUCTS
     app.post("/api/products", async (req, res) => {
-      const product = req.body;
-      const result = await productsCollection.insertOne(product);
+      try {
+        const productData = req.body;
 
-      res.json({
-        success: true,
-        insertedId: result.insertedId.toString(),
-      });
+        const result = await productsCollection.insertOne({
+          ...productData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        res.json({
+          success: true,
+          insertedId: result.insertedId,
+          message: "Product added successfully",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.get("/api/products/seller/:email", async (req, res) => {
+      try {
+        const email = decodeURIComponent(req.params.email);
+        const { search = "", category = "all", sort = "latest" } = req.query;
+
+        const query = {
+          "sellerInfo.email": email,
+        };
+
+        if (category !== "all") {
+          query.category = category;
+        }
+
+        if (search) {
+          query.$or = [
+            { title: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+            { condition: { $regex: search, $options: "i" } },
+          ];
+        }
+
+        let sortOption = { createdAt: -1 };
+
+        if (sort === "price-low") sortOption = { price: 1 };
+        if (sort === "price-high") sortOption = { price: -1 };
+
+        const products = await productsCollection
+          .find(query)
+          .sort(sortOption)
+          .toArray();
+
+        res.json(products);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.get("/api/products", async (req, res) => {
+      try {
+        const { search = "", category = "all", sort = "latest" } = req.query;
+
+        const query = {};
+
+        if (category !== "all") {
+          query.category = category;
+        }
+
+        if (search) {
+          query.$or = [
+            { title: { $regex: search, $options: "i" } },
+            { description: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+            { "sellerInfo.name": { $regex: search, $options: "i" } },
+          ];
+        }
+
+        let sortOption = { createdAt: -1 };
+
+        if (sort === "price-low") sortOption = { price: 1 };
+        if (sort === "price-high") sortOption = { price: -1 };
+
+        const products = await productsCollection
+          .find(query)
+          .sort(sortOption)
+          .toArray();
+
+        res.json(products);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
 
     app.get("/api/products/:id", async (req, res) => {
-      const product = await productsCollection.findOne({
-        _id: new ObjectId(req.params.id),
-      });
+      try {
+        const id = req.params.id;
 
-      res.json(product);
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product id",
+          });
+        }
+
+        const product = await productsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: "Product not found",
+          });
+        }
+
+        res.json(product);
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
 
     app.patch("/api/products/:id", async (req, res) => {
-      const updatedData = req.body;
-      delete updatedData._id;
+      try {
+        const id = req.params.id;
+        const updatedData = req.body;
 
-      const result = await productsCollection.updateOne(
-        { _id: new ObjectId(req.params.id) },
-        {
-          $set: {
-            ...updatedData,
-            updatedAt: new Date(),
-          },
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product id",
+          });
         }
-      );
 
-      res.json({
-        success: true,
-        modifiedCount: result.modifiedCount,
-      });
+        delete updatedData._id;
+
+        const result = await productsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              ...updatedData,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: true,
+          modifiedCount: result.modifiedCount,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
 
     app.delete("/api/products/:id", async (req, res) => {
-      const result = await productsCollection.deleteOne({
-        _id: new ObjectId(req.params.id),
-      });
+      try {
+        const id = req.params.id;
 
-      res.json({
-        success: true,
-        deletedCount: result.deletedCount,
-      });
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product id",
+          });
+        }
+
+        const result = await productsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.json({
+          success: true,
+          deletedCount: result.deletedCount,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    // WISHLIST
+    app.post("/api/wishlist", async (req, res) => {
+      try {
+        const wishlistData = req.body;
+
+        if (!wishlistData?.userEmail || !wishlistData?.product?._id) {
+          return res.status(400).json({
+            success: false,
+            message: "User email and product are required",
+          });
+        }
+
+        const exists = await wishlistCollection.findOne({
+          userEmail: wishlistData.userEmail,
+          "product._id": wishlistData.product._id,
+        });
+
+        if (exists) {
+          return res.json({
+            success: false,
+            message: "Already added to wishlist",
+          });
+        }
+
+        const result = await wishlistCollection.insertOne(wishlistData);
+
+        res.json({
+          success: true,
+          message: "Added to wishlist",
+          result,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.get("/api/wishlist/user/:email", async (req, res) => {
+      try {
+        const email = decodeURIComponent(req.params.email);
+
+        const result = await wishlistCollection.find({ userEmail: email }).toArray();
+
+        res.json({
+          success: true,
+          wishlist: result,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
+
+    app.delete("/api/wishlist/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid wishlist id",
+          });
+        }
+
+        const result = await wishlistCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.json({
+          success: true,
+          message: "Removed from wishlist",
+          deletedCount: result.deletedCount,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
 
     console.log("✅ Connected to MongoDB Successfully");
