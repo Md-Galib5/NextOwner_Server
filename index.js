@@ -33,188 +33,47 @@ async function run() {
     await client.connect();
 
     const database = client.db("nextowner");
-
     const usersCollection = database.collection("user");
     const productsCollection = database.collection("products");
 
-
-
-    app.get("/api/users/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-
-        const user = await usersCollection.findOne({
-          _id: new ObjectId(id),
-        });
-
-        if (!user) {
-          return res.status(404).json({
-            success: false,
-            message: "User not found",
-          });
-        }
-
-        res.json(user);
-      } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-
-app.get("/api/users/by-email/:email", async (req, res) => {
-  const user = await usersCollection.findOne({
-    email: req.params.email,
-  });
-
-  res.json(user);
-});
-
-    app.patch("/api/users/:id/seller-profile", async (req, res) => {
-      try {
-        const id = req.params.id;
-
-        const {
-          phone,
-          location,
-          photo,
-          status = "active",
-        } = req.body;
-
-        if (!phone || !location || !photo) {
-          return res.status(400).json({
-            success: false,
-            message:
-              "Phone, location and profile photo are required",
-          });
-        }
-
-        const result = await usersCollection.updateOne(
-          {
-            _id: new ObjectId(id),
-          },
-          {
-            $set: {
-              phone,
-              location,
-              photo,
-              status,
-              role: "seller",
-              sellerProfileCompleted: true,
-            },
-          }
-        );
-
-        res.json({
-          success: true,
-          modifiedCount: result.modifiedCount,
-        });
-      } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-
-    app.get("/api/products", async (req, res) => {
-      try {
-        const query = {};
-
-        if (req.query.userId) {
-          query["sellerInfo.userId"] =
-            req.query.userId.trim();
-        }
-
-        if (req.query.status) {
-          query.status = req.query.status.trim();
-        }
-
-        const result = await productsCollection
-          .find(query)
-          .sort({
-            createdAt: -1,
-          })
-          .toArray();
-
-        res.json(result);
-      } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-
-    app.post("/api/products", async (req, res) => {
-      try {
-        const product = req.body;
-
-        const result =
-          await productsCollection.insertOne(product);
-
-        res.json({
-          success: true,
-          insertedId: result.insertedId.toString(),
-        });
-      } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-
-    app.delete("/api/products/:id", async (req, res) => {
-      try {
-        const result =
-          await productsCollection.deleteOne({
-            _id: new ObjectId(req.params.id),
-          });
-
-        res.json({
-          success: true,
-          deletedCount: result.deletedCount,
-        });
-      } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-    app.get("/api/products/:id", async (req, res) => {
+app.get("/api/products/seller/:email", async (req, res) => {
   try {
-    const id = req.params.id;
+    const email = req.params.email;
+    const { search = "", category = "all", sort = "latest" } = req.query;
 
-    const product = await productsCollection.findOne({
-      _id: new ObjectId(id),
-    });
+    const query = {
+      "sellerInfo.email": email,
+    };
 
-    if (!product) {
-      return res.status(404).json({
-        success: false,
-        message: "Product not found",
-      });
+    if (category !== "all") {
+      query.category = category;
     }
 
-    res.json(product);
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { condition: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "price-low") {
+      sortOption = { price: 1 };
+    }
+
+    if (sort === "price-high") {
+      sortOption = { price: -1 };
+    }
+
+    const products = await productsCollection
+      .find(query)
+      .sort(sortOption)
+      .toArray();
+
+    res.json(products);
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -223,42 +82,100 @@ app.get("/api/users/by-email/:email", async (req, res) => {
   }
 });
 
+    
+app.get("/api/products", async (req, res) => {
+  try {
+    const { search = "", category = "all", sort = "latest" } = req.query;
+
+    const query = {};
+
+    if (category !== "all") {
+      query.category = category;
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { "sellerInfo.name": { $regex: search, $options: "i" } },
+      ];
+    }
+
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "price-low") {
+      sortOption = { price: 1 };
+    }
+
+    if (sort === "price-high") {
+      sortOption = { price: -1 };
+    }
+
+    const products = await productsCollection
+      .find(query)
+      .sort(sortOption)
+      .toArray();
+
+    res.json(products);
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+    app.post("/api/products", async (req, res) => {
+      const product = req.body;
+      const result = await productsCollection.insertOne(product);
+
+      res.json({
+        success: true,
+        insertedId: result.insertedId.toString(),
+      });
+    });
+
+    app.get("/api/products/:id", async (req, res) => {
+      const product = await productsCollection.findOne({
+        _id: new ObjectId(req.params.id),
+      });
+
+      res.json(product);
+    });
+
     app.patch("/api/products/:id", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const updatedData = req.body;
+      const updatedData = req.body;
+      delete updatedData._id;
 
-        const result =
-          await productsCollection.updateOne(
-            {
-              _id: new ObjectId(id),
-            },
-            {
-              $set: updatedData,
-            }
-          );
+      const result = await productsCollection.updateOne(
+        { _id: new ObjectId(req.params.id) },
+        {
+          $set: {
+            ...updatedData,
+            updatedAt: new Date(),
+          },
+        }
+      );
 
-        res.json({
-          success: true,
-          modifiedCount: result.modifiedCount,
-        });
-      } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
+      res.json({
+        success: true,
+        modifiedCount: result.modifiedCount,
+      });
     });
 
-    await client.db("admin").command({
-      ping: 1,
+    app.delete("/api/products/:id", async (req, res) => {
+      const result = await productsCollection.deleteOne({
+        _id: new ObjectId(req.params.id),
+      });
+
+      res.json({
+        success: true,
+        deletedCount: result.deletedCount,
+      });
     });
 
-    console.log(
-      "✅ Connected to MongoDB Successfully"
-    );
+    console.log("✅ Connected to MongoDB Successfully");
   } catch (error) {
     console.error(error);
   }
@@ -267,7 +184,5 @@ app.get("/api/users/by-email/:email", async (req, res) => {
 run();
 
 app.listen(port, () => {
-  console.log(
-    `🚀 NextOwner Server running on port ${port}`
-  );
+  console.log(`🚀 NextOwner Server running on port ${port}`);
 });
