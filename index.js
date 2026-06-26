@@ -33,7 +33,6 @@ async function run() {
     const wishlistCollection = database.collection("wishlist");
     const ordersCollection = database.collection("orders");
 
-
     // USERS
     app.get("/api/users/by-email/:email", async (req, res) => {
       try {
@@ -45,82 +44,67 @@ async function run() {
 
         res.json(user || null);
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
     app.patch("/api/users/by-email/:email/seller-profile", async (req, res) => {
-  try {
-    const email = decodeURIComponent(req.params.email);
-    const data = req.body;
+      try {
+        const email = decodeURIComponent(req.params.email);
+        const data = req.body;
 
-    const result = await usersCollection.updateOne(
-      {
-        email: { $regex: `^${email}$`, $options: "i" },
-      },
-      {
-        $set: {
-          ...data,
-          sellerProfileCompleted: true,
-          updatedAt: new Date(),
-        },
+        const result = await usersCollection.updateOne(
+          { email: { $regex: `^${email}$`, $options: "i" } },
+          {
+            $set: {
+              ...data,
+              sellerProfileCompleted: true,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: result.matchedCount > 0,
+          modifiedCount: result.modifiedCount,
+          message:
+            result.matchedCount > 0
+              ? "Seller profile updated"
+              : "User not found",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
       }
-    );
-
-    res.json({
-      success: result.matchedCount > 0,
-      matchedCount: result.matchedCount,
-      modifiedCount: result.modifiedCount,
-      message:
-        result.matchedCount > 0
-          ? "Seller profile updated"
-          : "User not found",
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
 
-app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
-  try {
-    const email = decodeURIComponent(req.params.email);
-    const data = req.body;
+    app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
+      try {
+        const email = decodeURIComponent(req.params.email);
+        const data = req.body;
 
-    const result = await usersCollection.updateOne(
-      {
-        email: { $regex: `^${email}$`, $options: "i" },
-      },
-      {
-        $set: {
-          ...data,
-          buyerProfileCompleted: true,
-          updatedAt: new Date(),
-        },
+        const result = await usersCollection.updateOne(
+          { email: { $regex: `^${email}$`, $options: "i" } },
+          {
+            $set: {
+              ...data,
+              buyerProfileCompleted: true,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: result.matchedCount > 0,
+          modifiedCount: result.modifiedCount,
+          message:
+            result.matchedCount > 0
+              ? "Buyer profile updated"
+              : "User not found",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
       }
-    );
-
-    res.json({
-      success: result.matchedCount > 0,
-      matchedCount: result.matchedCount,
-      modifiedCount: result.modifiedCount,
-      message:
-        result.matchedCount > 0
-          ? "Buyer profile updated"
-          : "User not found",
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
 
     app.get("/api/users/:id", async (req, res) => {
       try {
@@ -139,92 +123,15 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
 
         res.json(user || null);
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-    app.patch("/api/users/:id/seller-profile", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const data = req.body;
-
-        if (!ObjectId.isValid(id)) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid user id",
-          });
-        }
-
-        const result = await usersCollection.updateOne(
-          { _id: new ObjectId(id) },
-          {
-            $set: {
-              ...data,
-              sellerProfileCompleted: true,
-              updatedAt: new Date(),
-            },
-          }
-        );
-
-        res.json({
-          success: true,
-          modifiedCount: result.modifiedCount,
-          message: "Seller profile updated",
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    });
-
-    app.patch("/api/users/:id/buyer-profile", async (req, res) => {
-      try {
-        const id = req.params.id;
-        const data = req.body;
-
-        if (!ObjectId.isValid(id)) {
-          return res.status(400).json({
-            success: false,
-            message: "Invalid user id",
-          });
-        }
-
-        const result = await usersCollection.updateOne(
-          { _id: new ObjectId(id) },
-          {
-            $set: {
-              ...data,
-              buyerProfileCompleted: true,
-              updatedAt: new Date(),
-            },
-          }
-        );
-
-        res.json({
-          success: true,
-          modifiedCount: result.modifiedCount,
-          message: "Buyer profile updated",
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
     // PRODUCTS
     app.post("/api/products", async (req, res) => {
       try {
-        const productData = req.body;
-
         const result = await productsCollection.insertOne({
-          ...productData,
+          ...req.body,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -235,10 +142,7 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
           message: "Product added successfully",
         });
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -247,13 +151,9 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
         const email = decodeURIComponent(req.params.email);
         const { search = "", category = "all", sort = "latest" } = req.query;
 
-        const query = {
-          "sellerInfo.email": email,
-        };
+        const query = { "sellerInfo.email": email };
 
-        if (category !== "all") {
-          query.category = category;
-        }
+        if (category !== "all") query.category = category;
 
         if (search) {
           query.$or = [
@@ -265,7 +165,6 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
         }
 
         let sortOption = { createdAt: -1 };
-
         if (sort === "price-low") sortOption = { price: 1 };
         if (sort === "price-high") sortOption = { price: -1 };
 
@@ -276,10 +175,7 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
 
         res.json(products);
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -289,9 +185,7 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
 
         const query = {};
 
-        if (category !== "all") {
-          query.category = category;
-        }
+        if (category !== "all") query.category = category;
 
         if (search) {
           query.$or = [
@@ -303,7 +197,6 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
         }
 
         let sortOption = { createdAt: -1 };
-
         if (sort === "price-low") sortOption = { price: 1 };
         if (sort === "price-high") sortOption = { price: -1 };
 
@@ -314,10 +207,7 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
 
         res.json(products);
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -336,19 +226,9 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
           _id: new ObjectId(id),
         });
 
-        if (!product) {
-          return res.status(404).json({
-            success: false,
-            message: "Product not found",
-          });
-        }
-
-        res.json(product);
+        res.json(product || null);
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -381,10 +261,7 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
           modifiedCount: result.modifiedCount,
         });
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -408,10 +285,7 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
           deletedCount: result.deletedCount,
         });
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -447,10 +321,7 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
           result,
         });
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -458,17 +329,16 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
       try {
         const email = decodeURIComponent(req.params.email);
 
-        const result = await wishlistCollection.find({ userEmail: email }).toArray();
+        const result = await wishlistCollection
+          .find({ userEmail: email })
+          .toArray();
 
         res.json({
           success: true,
           wishlist: result,
         });
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
@@ -493,35 +363,54 @@ app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
           deletedCount: result.deletedCount,
         });
       } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+        res.status(500).json({ success: false, message: error.message });
       }
     });
 
-    
-app.post("/api/orders", async (req, res) => {
-  try {
-    const order = req.body;
+    // ORDERS
+    app.post("/api/orders", async (req, res) => {
+      try {
+        const result = await ordersCollection.insertOne({
+          ...req.body,
+          createdAt: new Date(),
+        });
 
-    const result = await ordersCollection.insertOne({
-      ...order,
-      createdAt: new Date(),
+        res.json({
+          success: true,
+          insertedId: result.insertedId,
+          message: "Order placed successfully",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
     });
 
-    res.send({
-      success: true,
-      insertedId: result.insertedId,
-      message: "Order placed successfully",
+    app.get("/api/orders/buyer/:email", async (req, res) => {
+      try {
+        const email = decodeURIComponent(req.params.email);
+
+        const orders = await ordersCollection
+          .find({
+            "buyerInfo.email": {
+              $regex: `^${email}$`,
+              $options: "i",
+            },
+          })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.json({
+          success: true,
+          orders,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+          orders: [],
+        });
+      }
     });
-  } catch (error) {
-    res.status(500).send({
-      success: false,
-      message: error.message,
-    });
-  }
-});
 
     console.log("✅ Connected to MongoDB Successfully");
   } catch (error) {
