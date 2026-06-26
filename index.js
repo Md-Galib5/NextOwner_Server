@@ -31,6 +31,8 @@ async function run() {
     const usersCollection = database.collection("user");
     const productsCollection = database.collection("products");
     const wishlistCollection = database.collection("wishlist");
+    const ordersCollection = database.collection("orders");
+
 
     // USERS
     app.get("/api/users/by-email/:email", async (req, res) => {
@@ -49,6 +51,76 @@ async function run() {
         });
       }
     });
+
+    app.patch("/api/users/by-email/:email/seller-profile", async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+    const data = req.body;
+
+    const result = await usersCollection.updateOne(
+      {
+        email: { $regex: `^${email}$`, $options: "i" },
+      },
+      {
+        $set: {
+          ...data,
+          sellerProfileCompleted: true,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({
+      success: result.matchedCount > 0,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      message:
+        result.matchedCount > 0
+          ? "Seller profile updated"
+          : "User not found",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+app.patch("/api/users/by-email/:email/buyer-profile", async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+    const data = req.body;
+
+    const result = await usersCollection.updateOne(
+      {
+        email: { $regex: `^${email}$`, $options: "i" },
+      },
+      {
+        $set: {
+          ...data,
+          buyerProfileCompleted: true,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({
+      success: result.matchedCount > 0,
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+      message:
+        result.matchedCount > 0
+          ? "Buyer profile updated"
+          : "User not found",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
     app.get("/api/users/:id", async (req, res) => {
       try {
@@ -427,6 +499,29 @@ async function run() {
         });
       }
     });
+
+    
+app.post("/api/orders", async (req, res) => {
+  try {
+    const order = req.body;
+
+    const result = await ordersCollection.insertOne({
+      ...order,
+      createdAt: new Date(),
+    });
+
+    res.send({
+      success: true,
+      insertedId: result.insertedId,
+      message: "Order placed successfully",
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
     console.log("✅ Connected to MongoDB Successfully");
   } catch (error) {
