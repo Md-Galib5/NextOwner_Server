@@ -367,6 +367,8 @@ async function run() {
       }
     });
 
+//   
+
     // ORDERS
     app.post("/api/orders", async (req, res) => {
       try {
@@ -382,6 +384,63 @@ async function run() {
         });
       } catch (error) {
         res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.post("/api/orders/stripe-success", async (req, res) => {
+      try {
+        const {
+          buyerInfo,
+          sellerInfo,
+          productInfo,
+          paymentStatus,
+          orderStatus,
+          stripeSessionId,
+          stripePaymentIntentId,
+        } = req.body;
+
+        if (!stripeSessionId) {
+          return res.status(400).json({
+            success: false,
+            message: "Stripe session id missing",
+          });
+        }
+
+        const existingOrder = await ordersCollection.findOne({
+          stripeSessionId,
+        });
+
+        if (existingOrder) {
+          return res.json({
+            success: true,
+            message: "Order already exists",
+            orderId: existingOrder._id,
+          });
+        }
+
+        const result = await ordersCollection.insertOne({
+          buyerInfo,
+          sellerInfo,
+          productInfo,
+          paymentStatus: paymentStatus || "paid",
+          orderStatus: orderStatus || "processing",
+          stripeSessionId,
+          stripePaymentIntentId,
+          createdAt: new Date(),
+        });
+
+        res.json({
+          success: true,
+          message: "Order saved successfully",
+          orderId: result.insertedId,
+        });
+      } catch (error) {
+        console.error("Stripe success order save error:", error);
+
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
       }
     });
 
