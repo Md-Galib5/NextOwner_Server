@@ -471,6 +471,79 @@ async function run() {
       }
     });
 
+
+    // GET all buyer orders
+app.get("/api/orders/buyer/:email", async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+
+    const orders = await ordersCollection
+      .find({ "buyerInfo.email": { $regex: `^${email}$`, $options: "i" } })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({ success: true, orders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message, orders: [] });
+  }
+});
+
+// GET single order details
+app.get("/api/orders/:id", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order id" });
+    }
+
+    const order = await ordersCollection.findOne({ _id: new ObjectId(id) });
+
+    res.json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Cancel order before shipment
+app.patch("/api/orders/:id/cancel", async (req, res) => {
+  try {
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order id" });
+    }
+
+    const order = await ordersCollection.findOne({ _id: new ObjectId(id) });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    if (["shipped", "delivered"].includes(order.orderStatus)) {
+      return res.json({
+        success: false,
+        message: "You cannot cancel after shipment",
+      });
+    }
+
+    await ordersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          orderStatus: "cancelled",
+          cancelledAt: new Date(),
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({ success: true, message: "Order cancelled successfully" });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
     console.log("✅ Connected to MongoDB Successfully");
   } catch (error) {
     console.error(error);
