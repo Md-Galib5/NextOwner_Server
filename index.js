@@ -128,23 +128,64 @@ async function run() {
     });
 
     // PRODUCTS
-    app.post("/api/products", async (req, res) => {
-      try {
-        const result = await productsCollection.insertOne({
-          ...req.body,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+    // app.post("/api/products", async (req, res) => {
+    //   try {
+    //     const result = await productsCollection.insertOne({
+    //       ...req.body,
+    //       createdAt: new Date(),
+    //       updatedAt: new Date(),
+    //     });
 
-        res.json({
-          success: true,
-          insertedId: result.insertedId,
-          message: "Product added successfully",
-        });
-      } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
-      }
+    //     res.json({
+    //       success: true,
+    //       insertedId: result.insertedId,
+    //       message: "Product added successfully",
+    //     });
+    //   } catch (error) {
+    //     res.status(500).json({ success: false, message: error.message });
+    //   }
+    // });
+
+    app.get("/api/products", async (req, res) => {
+  try {
+    const { search = "", category = "all", sort = "latest" } = req.query;
+
+    const query = {
+      status: { $ne: "rejected" },
+    };
+
+    if (search) {
+      query.title = { $regex: search, $options: "i" };
+    }
+
+    if (category !== "all") {
+      query.category = category;
+    }
+
+    const sortOption =
+      sort === "price-low"
+        ? { price: 1 }
+        : sort === "price-high"
+        ? { price: -1 }
+        : { createdAt: -1 };
+
+    const products = await productsCollection
+      .find(query)
+      .sort(sortOption)
+      .toArray();
+
+    res.json({
+      success: true,
+      products,
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      products: [],
+    });
+  }
+});
 
     app.get("/api/products/seller/:email", async (req, res) => {
       try {
@@ -652,6 +693,268 @@ app.get("/api/admin/stats", async (req, res) => {
       success: false,
       message: "Failed to load admin stats",
     });
+  }
+});
+
+// ADMIN - GET ALL USERS
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    const { search = "" } = req.query;
+
+    const query = search
+      ? {
+          $or: [
+            { name: { $regex: search, $options: "i" } },
+            { email: { $regex: search, $options: "i" } },
+            { role: { $regex: search, $options: "i" } },
+            { status: { $regex: search, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const users = await usersCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({ success: true, users });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message, users: [] });
+  }
+});
+
+// ADMIN - UPDATE USER STATUS
+app.patch("/api/admin/users/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid user id" });
+    }
+
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          status,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({
+      success: result.modifiedCount > 0,
+      message: "User status updated",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ADMIN - DELETE USER
+app.delete("/api/admin/users/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid user id" });
+    }
+
+    const result = await usersCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    res.json({
+      success: result.deletedCount > 0,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ADMIN - GET ALL PRODUCTS
+app.get("/api/admin/products", async (req, res) => {
+  try {
+    const { search = "", status = "all" } = req.query;
+
+    const query = {};
+
+    if (status !== "all") {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { "sellerInfo.email": { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const products = await productsCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({ success: true, products });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message, products: [] });
+  }
+});
+
+// ADMIN - UPDATE PRODUCT STATUS
+app.patch("/api/admin/products/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // approved / rejected
+
+    const result = await productsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { status, updatedAt: new Date() } }
+    );
+
+    res.json({
+      success: result.modifiedCount > 0,
+      message: "Product status updated",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ADMIN - DELETE PRODUCT
+app.delete("/api/admin/products/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await productsCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    res.json({
+      success: result.deletedCount > 0,
+      message: "Product deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+// ADMIN - GET ALL ORDERS
+app.get("/api/admin/orders", async (req, res) => {
+  try {
+    const { search = "", status = "all" } = req.query;
+
+    const query = {};
+
+    if (status !== "all") {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { "buyerInfo.name": { $regex: search, $options: "i" } },
+        { "buyerInfo.email": { $regex: search, $options: "i" } },
+        { "sellerInfo.name": { $regex: search, $options: "i" } },
+        { "sellerInfo.email": { $regex: search, $options: "i" } },
+        { "productInfo.title": { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const orders = await ordersCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({ success: true, orders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message, orders: [] });
+  }
+});
+
+// ADMIN - UPDATE ORDER STATUS
+// app.patch("/api/admin/orders/:id/status", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { status } = req.body;
+
+//     const result = await ordersCollection.updateOne(
+//       { _id: new ObjectId(id) },
+//       {
+//         $set: {
+//           status,
+//           updatedAt: new Date(),
+//           updatedBy: "admin",
+//         },
+//       }
+//     );
+
+//     res.json({
+//       success: result.modifiedCount > 0,
+//       message: "Order status updated",
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+// app.patch("/api/admin/orders/:id/status", async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const { orderStatus } = req.body;
+
+//     const result = await ordersCollection.updateOne(
+//       { _id: new ObjectId(id) },
+//       {
+//         $set: {
+//           orderStatus,
+//           updatedAt: new Date(),
+//           updatedBy: "admin",
+//         },
+//       }
+//     );
+
+//     res.json({
+//       success: result.modifiedCount > 0,
+//       message: "Order status updated",
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: error.message });
+//   }
+// });
+
+app.patch("/api/admin/orders/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { orderStatus } = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order id",
+      });
+    }
+
+    const result = await ordersCollection.updateOne(
+      { _id: new ObjectId(id) },
+      {
+        $set: {
+          orderStatus,
+          updatedAt: new Date(),
+          updatedBy: "admin",
+        },
+      }
+    );
+
+    res.json({
+      success: result.modifiedCount > 0,
+      message: "Order status updated",
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 });
 
