@@ -205,15 +205,82 @@ async function run() {
 //   }
 // });
 
+// app.get("/api/products", async (req, res) => {
+//   try {
+//     const page = Math.max(Number(req.query.page) || 1, 1);
+//     const limit = Math.max(Number(req.query.limit) || 6, 1);
+//     const skip = (page - 1) * limit;
+
+//     const { search = "", category = "all", sort = "latest" } = req.query;
+
+//     const query = {};
+
+//     if (search) {
+//       query.$or = [
+//         { title: { $regex: search, $options: "i" } },
+//         { category: { $regex: search, $options: "i" } },
+//         { description: { $regex: search, $options: "i" } },
+//         { "sellerInfo.name": { $regex: search, $options: "i" } },
+//       ];
+//     }
+
+//     if (category !== "all") {
+//       query.category = category;
+//     }
+
+//     let sortOption = { createdAt: -1 };
+
+//     if (sort === "price-low") sortOption = { price: 1 };
+//     if (sort === "price-high") sortOption = { price: -1 };
+
+//     const totalProducts = await productsCollection.countDocuments(query);
+//     const totalPages = Math.ceil(totalProducts / limit);
+
+//     const products = await productsCollection
+//       .find(query)
+//       .sort(sortOption)
+//       .skip(skip)
+//       .limit(limit)
+//       .toArray();
+
+//     res.json({
+//       success: true,
+//       products,
+//       pagination: {
+//         currentPage: page,
+//         totalPages,
+//         totalProducts,
+//         limit,
+//         hasPrevPage: page > 1,
+//         hasNextPage: page < totalPages,
+//       },
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       success: false,
+//       message: error.message,
+//     });
+//   }
+// });
+
+
 app.get("/api/products", async (req, res) => {
   try {
-    const page = Math.max(Number(req.query.page) || 1, 1);
-    const limit = Math.max(Number(req.query.limit) || 6, 1);
-    const skip = (page - 1) * limit;
+    const {
+      page = 1,
+      limit = 6,
+      search = "",
+      category = "all",
+      sort = "latest",
+    } = req.query;
 
-    const { search = "", category = "all", sort = "latest" } = req.query;
+    const currentPage = Math.max(Number(page), 1);
+    const perPage = Math.max(Number(limit), 1);
+    const skip = (currentPage - 1) * perPage;
 
-    const query = {};
+    const query = {
+      status: { $in: ["approved", "available"] },
+    };
 
     if (search) {
       query.$or = [
@@ -228,37 +295,44 @@ app.get("/api/products", async (req, res) => {
       query.category = category;
     }
 
-    let sortOption = { createdAt: -1 };
+    let sortQuery = { createdAt: -1 };
 
-    if (sort === "price-low") sortOption = { price: 1 };
-    if (sort === "price-high") sortOption = { price: -1 };
+    if (sort === "price-low") {
+      sortQuery = { price: 1 };
+    }
+
+    if (sort === "price-high") {
+      sortQuery = { price: -1 };
+    }
 
     const totalProducts = await productsCollection.countDocuments(query);
-    const totalPages = Math.ceil(totalProducts / limit);
+    const totalPages = Math.max(Math.ceil(totalProducts / perPage), 1);
 
     const products = await productsCollection
       .find(query)
-      .sort(sortOption)
+      .sort(sortQuery)
       .skip(skip)
-      .limit(limit)
+      .limit(perPage)
       .toArray();
 
-    res.json({
+    res.send({
       success: true,
       products,
       pagination: {
-        currentPage: page,
+        currentPage,
         totalPages,
         totalProducts,
-        limit,
-        hasPrevPage: page > 1,
-        hasNextPage: page < totalPages,
+        limit: perPage,
+        hasPrevPage: currentPage > 1,
+        hasNextPage: currentPage < totalPages,
       },
     });
   } catch (error) {
-    res.status(500).json({
+    console.error("GET PRODUCTS ERROR:", error);
+    res.status(500).send({
       success: false,
-      message: error.message,
+      message: "Failed to get products",
+      error: error.message,
     });
   }
 });
