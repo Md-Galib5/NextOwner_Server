@@ -418,16 +418,22 @@ async function run() {
           });
         }
 
-        const result = await ordersCollection.insertOne({
-          buyerInfo,
-          sellerInfo,
-          productInfo,
-          paymentStatus: paymentStatus || "paid",
-          orderStatus: orderStatus || "processing",
-          stripeSessionId,
-          stripePaymentIntentId,
-          createdAt: new Date(),
-        });
+       const result = await ordersCollection.insertOne({
+  buyerInfo,
+  sellerInfo,
+  productInfo: {
+    ...productInfo,
+    condition: Array.isArray(productInfo?.condition)
+      ? productInfo.condition.join("")
+      : productInfo?.condition,
+  },
+  paymentStatus: paymentStatus || "paid",
+  orderStatus: orderStatus || "pending",
+  stripeSessionId,
+  stripePaymentIntentId,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+});
 
         res.json({
           success: true,
@@ -625,6 +631,26 @@ app.patch("/api/orders/:id/status", async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message,
+    });
+  }
+});
+
+app.get("/api/admin/stats", async (req, res) => {
+  try {
+    const totalUsers = await usersCollection.countDocuments();
+    const totalProducts = await productsCollection.countDocuments();
+    const totalOrders = await ordersCollection.countDocuments();
+
+    res.json({
+      success: true,
+      totalUsers,
+      totalProducts,
+      totalOrders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to load admin stats",
     });
   }
 });
