@@ -428,68 +428,83 @@ async function run() {
       }
     });
 
-    app.post("/api/orders/stripe-success", async (req, res) => {
-      try {
-        const {
-          buyerInfo,
-          sellerInfo,
-          productInfo,
-          paymentStatus,
-          orderStatus,
-          stripeSessionId,
-          stripePaymentIntentId,
-        } = req.body;
+app.post("/api/orders/stripe-success", async (req, res) => {
+  try {
+    const {
+      buyerInfo,
+      sellerInfo,
+      productInfo,
+      paymentStatus,
+      orderStatus,
+      transactionId,
+      stripeSessionId,
+      stripePaymentIntentId,
+    } = req.body;
 
-        if (!stripeSessionId) {
-          return res.status(400).json({
-            success: false,
-            message: "Stripe session id missing",
-          });
-        }
+    if (!stripeSessionId) {
+      return res.status(400).json({
+        success: false,
+        message: "Stripe session id missing",
+      });
+    }
 
-        const existingOrder = await ordersCollection.findOne({
-          stripeSessionId,
-        });
-
-        if (existingOrder) {
-          return res.json({
-            success: true,
-            message: "Order already exists",
-            orderId: existingOrder._id,
-          });
-        }
-
-       const result = await ordersCollection.insertOne({
-  buyerInfo,
-  sellerInfo,
-  productInfo: {
-    ...productInfo,
-    condition: Array.isArray(productInfo?.condition)
-      ? productInfo.condition.join("")
-      : productInfo?.condition,
-  },
-  paymentStatus: paymentStatus || "paid",
-  orderStatus: orderStatus || "pending",
-  stripeSessionId,
-  stripePaymentIntentId,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-});
-
-        res.json({
-          success: true,
-          message: "Order saved successfully",
-          orderId: result.insertedId,
-        });
-      } catch (error) {
-        console.error("Stripe success order save error:", error);
-
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
+    const existingOrder = await ordersCollection.findOne({
+      stripeSessionId,
     });
+
+    if (existingOrder) {
+      return res.json({
+        success: true,
+        message: "Order already exists",
+        orderId: existingOrder._id,
+      });
+    }
+
+    const quantity = Number(productInfo?.quantity || 1);
+    const unitPrice = Number(productInfo?.price || 0);
+    const totalPrice = unitPrice * quantity;
+
+    const result = await ordersCollection.insertOne({
+      buyerInfo,
+      sellerInfo,
+
+      productInfo: {
+        ...productInfo,
+        condition: Array.isArray(productInfo?.condition)
+          ? productInfo.condition.join("")
+          : productInfo?.condition,
+      },
+
+      quantity,
+      unitPrice,
+      totalPrice,
+
+      paymentStatus: paymentStatus || "paid",
+      orderStatus: orderStatus || "processing",
+
+      transactionId,
+
+      stripeSessionId,
+      stripePaymentIntentId,
+
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    res.json({
+      success: true,
+      message: "Order saved successfully",
+      orderId: result.insertedId,
+    });
+  } catch (error) {
+    console.error("Stripe success order save error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
     app.get("/api/orders/buyer/:email", async (req, res) => {
       try {
@@ -955,6 +970,117 @@ app.patch("/api/admin/orders/:id/status", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+app.get("/api/admin/transactions", async (req, res) => {
+  try {
+    const { search = "", status = "all" } = req.query;
+
+    let query = {};
+
+    if (status !== "all") {
+      query.paymentStatus = status;
+    }
+
+    const transactions = await ordersCollection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    const filtered = transactions.filter((item) => {
+      const keyword = search.toLowerCase();
+
+      return (
+        item?.buyerInfo?.name?.toLowerCase().includes(keyword) ||
+        item?.buyerInfo?.email?.toLowerCase().includes(keyword) ||
+        item?.sellerInfo?.name?.toLowerCase().includes(keyword) ||
+        item?.sellerInfo?.email?.toLowerCase().includes(keyword) ||
+        item?.stripePaymentIntentId?.toLowerCase().includes(keyword)
+      );
+    });
+
+    const totalRevenue = filtered.reduce(
+      (sum, item) => sum + Number(item.totalPrice || item.productInfo?.price || 0),
+      0
+    );
+
+    res.send({
+      success: true,
+      transactions: filtered,
+      totalRevenue,
+      totalTransactions: filtered.length,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+app.post("/api/orders/stripe-success", async (req, res) => {
+  try {
+    const {
+      buyerInfo,
+      sellerInfo,
+      productInfo,
+      paymentStatus,
+      orderStatus,
+      transactionId,
+      stripeSessionId,
+      stripePaymentIntentId,
+    } = req.body;
+
+    const existingOrder = await ordersCollection.findOne({
+      stripeSessionId,
+    });
+
+    if (existingOrder) {
+      return res.send({
+        success: true,
+        message: "Order already saved",
+        orderId: existingOrder._id,
+      });
+    }
+
+    const quantity = Number(productInfo?.quantity || 1);
+    const unitPrice = Number(productInfo?.price || 0);
+    const totalPrice = unitPrice * quantity;
+
+    const order = {
+      buyerInfo,
+      sellerInfo,
+      productInfo,
+
+      quantity,
+      unitPrice,
+      totalPrice,
+
+      paymentStatus: paymentStatus || "paid",
+      orderStatus: orderStatus || "processing",
+
+      transactionId,
+      stripeSessionId,
+      stripePaymentIntentId,
+
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    const result = await ordersCollection.insertOne(order);
+
+    res.send({
+      success: true,
+      message: "Order saved successfully",
+      insertedId: result.insertedId,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
   }
 });
 
