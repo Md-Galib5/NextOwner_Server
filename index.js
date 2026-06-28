@@ -488,6 +488,35 @@ app.get("/api/orders/buyer/:email", async (req, res) => {
   }
 });
 
+
+app.get("/api/orders/seller/:email", async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email).trim();
+
+    console.log("SELLER ORDER EMAIL:", email);
+
+    const orders = await ordersCollection
+      .find({
+        "sellerInfo.email": {
+          $regex: `^${email}$`,
+          $options: "i",
+        },
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    console.log("SELLER ORDERS FOUND:", orders.length);
+
+    res.json({ success: true, orders });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      orders: [],
+    });
+  }
+});
+
 // GET single order details
 app.get("/api/orders/:id", async (req, res) => {
   try {
@@ -541,6 +570,62 @@ app.patch("/api/orders/:id/cancel", async (req, res) => {
     res.json({ success: true, message: "Order cancelled successfully" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+
+app.get("/api/orders/seller/:email", async (req, res) => {
+  try {
+    const email = decodeURIComponent(req.params.email);
+
+    const orders = await ordersCollection
+      .find({
+        "sellerInfo.email": {
+          $regex: `^${email}$`,
+          $options: "i",
+        },
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({
+      success: true,
+      orders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+      orders: [],
+    });
+  }
+});
+
+
+
+app.patch("/api/orders/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const result = await ordersCollection.updateOne(
+      { _id: new ObjectId(req.params.id) },
+      {
+        $set: {
+          orderStatus: status,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    res.json({
+      success: true,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
   }
 });
 
