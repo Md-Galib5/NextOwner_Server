@@ -1394,122 +1394,122 @@ async function run() {
       }
     });
 
-// app.get("/api/products", async (req, res) => {
-//   try {
-//     const page = Math.max(parseInt(req.query.page) || 1, 1);
-//     const limit = Math.max(parseInt(req.query.limit) || 1, 1);
-//     const skip = (page - 1) * limit;
+app.get("/api/products", async (req, res) => {
+  try {
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.max(parseInt(req.query.limit) || 1, 1);
+    const skip = (page - 1) * limit;
 
-//     const { search = "", category = "all", sort = "latest" } = req.query;
+    const { search = "", category = "all", sort = "latest" } = req.query;
 
-//     const query = {};
+    const query = {};
 
-//     if (search) {
-//       query.$or = [
-//         { title: { $regex: search, $options: "i" } },
-//         { category: { $regex: search, $options: "i" } },
-//         { description: { $regex: search, $options: "i" } },
-//       ];
-//     }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
 
-//     if (category !== "all") {
-//       query.category = category;
-//     }
+    if (category !== "all") {
+      query.category = category;
+    }
 
-//     let sortOption = { createdAt: -1 };
+    let sortOption = { createdAt: -1 };
 
-//     if (sort === "oldest") sortOption = { createdAt: 1 };
-//     if (sort === "price-low") sortOption = { price: 1 };
-//     if (sort === "price-high") sortOption = { price: -1 };
+    if (sort === "oldest") sortOption = { createdAt: 1 };
+    if (sort === "price-low") sortOption = { price: 1 };
+    if (sort === "price-high") sortOption = { price: -1 };
 
-//     const totalProducts = await productsCollection.countDocuments(query);
+    const totalProducts = await productsCollection.countDocuments(query);
 
-//     const products = await productsCollection
-//       .find(query)
-//       .sort(sortOption)
-//       .skip(skip)
-//       .limit(limit)
-//       .toArray();
+    const products = await productsCollection
+      .find(query)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit)
+      .toArray();
 
-//     res.json({
-//       success: true,
-//       products,
-//       pagination: {
-//         totalProducts,
-//         currentPage: page,
-//         totalPages: Math.ceil(totalProducts / limit),
-//         limit,
-//         hasPrevPage: page > 1,
-//         hasNextPage: page < Math.ceil(totalProducts / limit),
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Get products error:", error);
+    res.json({
+      success: true,
+      products,
+      pagination: {
+        totalProducts,
+        currentPage: page,
+        totalPages: Math.ceil(totalProducts / limit),
+        limit,
+        hasPrevPage: page > 1,
+        hasNextPage: page < Math.ceil(totalProducts / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get products error:", error);
 
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// });
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
-// app.get("/api/products", async (req, res) => {
-//   try {
-//     const page = Math.max(Number(req.query.page) || 1, 1);
-//     const limit = Math.max(Number(req.query.limit) || 6, 1);
-//     const skip = (page - 1) * limit;
+app.get("/api/products", async (req, res) => {
+  try {
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.max(Number(req.query.limit) || 6, 1);
+    const skip = (page - 1) * limit;
 
-//     const { search = "", category = "all", sort = "latest" } = req.query;
+    const { search = "", category = "all", sort = "latest" } = req.query;
 
-//     const query = {};
+    const query = {};
 
-//     if (search) {
-//       query.$or = [
-//         { title: { $regex: search, $options: "i" } },
-//         { category: { $regex: search, $options: "i" } },
-//         { description: { $regex: search, $options: "i" } },
-//         { "sellerInfo.name": { $regex: search, $options: "i" } },
-//       ];
-//     }
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { "sellerInfo.name": { $regex: search, $options: "i" } },
+      ];
+    }
 
-//     if (category !== "all") {
-//       query.category = category;
-//     }
+    if (category !== "all") {
+      query.category = category;
+    }
 
-//     let sortOption = { createdAt: -1 };
+    let sortOption = { createdAt: -1 };
 
-//     if (sort === "price-low") sortOption = { price: 1 };
-//     if (sort === "price-high") sortOption = { price: -1 };
+    if (sort === "price-low") sortOption = { price: 1 };
+    if (sort === "price-high") sortOption = { price: -1 };
 
-//     const totalProducts = await productsCollection.countDocuments(query);
-//     const totalPages = Math.ceil(totalProducts / limit);
+    const totalProducts = await productsCollection.countDocuments(query);
+    const totalPages = Math.ceil(totalProducts / limit);
 
-//     const products = await productsCollection
-//       .find(query)
-//       .sort(sortOption)
-//       .skip(skip)
-//       .limit(limit)
-//       .toArray();
+    const products = await productsCollection
+      .find(query)
+      .sort(sortOption)
+      .skip(skip)
+      .limit(limit)
+      .toArray();
 
-//     res.json({
-//       success: true,
-//       products,
-//       pagination: {
-//         currentPage: page,
-//         totalPages,
-//         totalProducts,
-//         limit,
-//         hasPrevPage: page > 1,
-//         hasNextPage: page < totalPages,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// });
+    res.json({
+      success: true,
+      products,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalProducts,
+        limit,
+        hasPrevPage: page > 1,
+        hasNextPage: page < totalPages,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
 
 app.get("/api/products", async (req, res) => {
@@ -2493,3 +2493,11 @@ run();
 app.listen(port, () => {
   console.log(`🚀 NextOwner Server running on port ${port}`);
 });
+
+if (process.env.NODE_ENV !== "production") {
+  app.listen(8080, () => {
+    console.log("Server running on port 8080");
+  });
+}
+
+module.exports = app;
