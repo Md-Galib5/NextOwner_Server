@@ -370,13 +370,15 @@ app.get("/api/products", async (req, res) => {
       }
     });
 
-    app.get("/api/products", async (req, res) => {
+   app.get("/api/products", async (req, res) => {
       try {
         const { search = "", category = "all", sort = "latest" } = req.query;
 
         const query = {};
 
-        if (category !== "all") query.category = category;
+        if (category !== "all") {
+          query.category = category;
+        }
 
         if (search) {
           query.$or = [
@@ -388,8 +390,14 @@ app.get("/api/products", async (req, res) => {
         }
 
         let sortOption = { createdAt: -1 };
-        if (sort === "price-low") sortOption = { price: 1 };
-        if (sort === "price-high") sortOption = { price: -1 };
+
+        if (sort === "price-low") {
+          sortOption = { price: 1 };
+        }
+
+        if (sort === "price-high") {
+          sortOption = { price: -1 };
+        }
 
         const products = await productsCollection
           .find(query)
@@ -398,7 +406,10 @@ app.get("/api/products", async (req, res) => {
 
         res.json(products);
       } catch (error) {
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
       }
     });
 
