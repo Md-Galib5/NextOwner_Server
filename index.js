@@ -1,10 +1,11 @@
+
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
-const port = 8080;
+const port = process.env.PORT || 8080;
 
 app.use(cors());
 app.use(express.json());
@@ -145,125 +146,6 @@ async function run() {
         res.status(500).json({ success: false, message: error.message });
       }
     });
-
-// app.get("/api/products", async (req, res) => {
-//   try {
-//     const page = Math.max(parseInt(req.query.page) || 1, 1);
-//     const limit = Math.max(parseInt(req.query.limit) || 1, 1);
-//     const skip = (page - 1) * limit;
-
-//     const { search = "", category = "all", sort = "latest" } = req.query;
-
-//     const query = {};
-
-//     if (search) {
-//       query.$or = [
-//         { title: { $regex: search, $options: "i" } },
-//         { category: { $regex: search, $options: "i" } },
-//         { description: { $regex: search, $options: "i" } },
-//       ];
-//     }
-
-//     if (category !== "all") {
-//       query.category = category;
-//     }
-
-//     let sortOption = { createdAt: -1 };
-
-//     if (sort === "oldest") sortOption = { createdAt: 1 };
-//     if (sort === "price-low") sortOption = { price: 1 };
-//     if (sort === "price-high") sortOption = { price: -1 };
-
-//     const totalProducts = await productsCollection.countDocuments(query);
-
-//     const products = await productsCollection
-//       .find(query)
-//       .sort(sortOption)
-//       .skip(skip)
-//       .limit(limit)
-//       .toArray();
-
-//     res.json({
-//       success: true,
-//       products,
-//       pagination: {
-//         totalProducts,
-//         currentPage: page,
-//         totalPages: Math.ceil(totalProducts / limit),
-//         limit,
-//         hasPrevPage: page > 1,
-//         hasNextPage: page < Math.ceil(totalProducts / limit),
-//       },
-//     });
-//   } catch (error) {
-//     console.error("Get products error:", error);
-
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// });
-
-// app.get("/api/products", async (req, res) => {
-//   try {
-//     const page = Math.max(Number(req.query.page) || 1, 1);
-//     const limit = Math.max(Number(req.query.limit) || 6, 1);
-//     const skip = (page - 1) * limit;
-
-//     const { search = "", category = "all", sort = "latest" } = req.query;
-
-//     const query = {};
-
-//     if (search) {
-//       query.$or = [
-//         { title: { $regex: search, $options: "i" } },
-//         { category: { $regex: search, $options: "i" } },
-//         { description: { $regex: search, $options: "i" } },
-//         { "sellerInfo.name": { $regex: search, $options: "i" } },
-//       ];
-//     }
-
-//     if (category !== "all") {
-//       query.category = category;
-//     }
-
-//     let sortOption = { createdAt: -1 };
-
-//     if (sort === "price-low") sortOption = { price: 1 };
-//     if (sort === "price-high") sortOption = { price: -1 };
-
-//     const totalProducts = await productsCollection.countDocuments(query);
-//     const totalPages = Math.ceil(totalProducts / limit);
-
-//     const products = await productsCollection
-//       .find(query)
-//       .sort(sortOption)
-//       .skip(skip)
-//       .limit(limit)
-//       .toArray();
-
-//     res.json({
-//       success: true,
-//       products,
-//       pagination: {
-//         currentPage: page,
-//         totalPages,
-//         totalProducts,
-//         limit,
-//         hasPrevPage: page > 1,
-//         hasNextPage: page < totalPages,
-//       },
-//     });
-//   } catch (error) {
-//     res.status(500).json({
-//       success: false,
-//       message: error.message,
-//     });
-//   }
-// });
-
-
 app.get("/api/products", async (req, res) => {
   try {
     const {
@@ -278,44 +160,40 @@ app.get("/api/products", async (req, res) => {
     const perPage = Math.max(Number(limit), 1);
     const skip = (currentPage - 1) * perPage;
 
-    const query = {
-      status: { $in: ["approved", "available"] },
-    };
-
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { category: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-        { "sellerInfo.name": { $regex: search, $options: "i" } },
-      ];
-    }
+    const query = {};
 
     if (category !== "all") {
       query.category = category;
     }
 
-    let sortQuery = { createdAt: -1 };
-
-    if (sort === "price-low") {
-      sortQuery = { price: 1 };
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { condition: { $regex: search, $options: "i" } },
+        { "sellerInfo.name": { $regex: search, $options: "i" } },
+        { "sellerInfo.email": { $regex: search, $options: "i" } },
+      ];
     }
 
-    if (sort === "price-high") {
-      sortQuery = { price: -1 };
-    }
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "oldest") sortOption = { createdAt: 1 };
+    if (sort === "price-low") sortOption = { price: 1 };
+    if (sort === "price-high") sortOption = { price: -1 };
 
     const totalProducts = await productsCollection.countDocuments(query);
-    const totalPages = Math.max(Math.ceil(totalProducts / perPage), 1);
+    const totalPages = Math.ceil(totalProducts / perPage);
 
     const products = await productsCollection
       .find(query)
-      .sort(sortQuery)
+      .sort(sortOption)
       .skip(skip)
       .limit(perPage)
       .toArray();
 
-    res.send({
+    res.json({
       success: true,
       products,
       pagination: {
@@ -328,21 +206,21 @@ app.get("/api/products", async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("GET PRODUCTS ERROR:", error);
-    res.status(500).send({
+    res.status(500).json({
       success: false,
       message: "Failed to get products",
       error: error.message,
     });
   }
 });
-
     app.get("/api/products/seller/:email", async (req, res) => {
       try {
         const email = decodeURIComponent(req.params.email);
         const { search = "", category = "all", sort = "latest" } = req.query;
 
-        const query = { "sellerInfo.email": email };
+        const query = {
+          "sellerInfo.email": { $regex: `^${email}$`, $options: "i" },
+        };
 
         if (category !== "all") query.category = category;
 
@@ -356,6 +234,7 @@ app.get("/api/products", async (req, res) => {
         }
 
         let sortOption = { createdAt: -1 };
+        if (sort === "oldest") sortOption = { createdAt: 1 };
         if (sort === "price-low") sortOption = { price: 1 };
         if (sort === "price-high") sortOption = { price: -1 };
 
@@ -367,49 +246,6 @@ app.get("/api/products", async (req, res) => {
         res.json(products);
       } catch (error) {
         res.status(500).json({ success: false, message: error.message });
-      }
-    });
-
-   app.get("/api/products", async (req, res) => {
-      try {
-        const { search = "", category = "all", sort = "latest" } = req.query;
-
-        const query = {};
-
-        if (category !== "all") {
-          query.category = category;
-        }
-
-        if (search) {
-          query.$or = [
-            { title: { $regex: search, $options: "i" } },
-            { description: { $regex: search, $options: "i" } },
-            { category: { $regex: search, $options: "i" } },
-            { "sellerInfo.name": { $regex: search, $options: "i" } },
-          ];
-        }
-
-        let sortOption = { createdAt: -1 };
-
-        if (sort === "price-low") {
-          sortOption = { price: 1 };
-        }
-
-        if (sort === "price-high") {
-          sortOption = { price: -1 };
-        }
-
-        const products = await productsCollection
-          .find(query)
-          .sort(sortOption)
-          .toArray();
-
-        res.json(products);
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
       }
     });
 
@@ -459,8 +295,12 @@ app.get("/api/products", async (req, res) => {
         );
 
         res.json({
-          success: true,
+          success: result.matchedCount > 0,
           modifiedCount: result.modifiedCount,
+          message:
+            result.matchedCount > 0
+              ? "Product updated successfully"
+              : "Product not found",
         });
       } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -483,8 +323,12 @@ app.get("/api/products", async (req, res) => {
         });
 
         res.json({
-          success: true,
+          success: result.deletedCount > 0,
           deletedCount: result.deletedCount,
+          message:
+            result.deletedCount > 0
+              ? "Product deleted successfully"
+              : "Product not found",
         });
       } catch (error) {
         res.status(500).json({ success: false, message: error.message });
@@ -515,7 +359,10 @@ app.get("/api/products", async (req, res) => {
           });
         }
 
-        const result = await wishlistCollection.insertOne(wishlistData);
+        const result = await wishlistCollection.insertOne({
+          ...wishlistData,
+          createdAt: new Date(),
+        });
 
         res.json({
           success: true,
@@ -532,7 +379,10 @@ app.get("/api/products", async (req, res) => {
         const email = decodeURIComponent(req.params.email);
 
         const result = await wishlistCollection
-          .find({ userEmail: email })
+          .find({
+            userEmail: { $regex: `^${email}$`, $options: "i" },
+          })
+          .sort({ createdAt: -1 })
           .toArray();
 
         res.json({
@@ -560,8 +410,11 @@ app.get("/api/products", async (req, res) => {
         });
 
         res.json({
-          success: true,
-          message: "Removed from wishlist",
+          success: result.deletedCount > 0,
+          message:
+            result.deletedCount > 0
+              ? "Removed from wishlist"
+              : "Wishlist item not found",
           deletedCount: result.deletedCount,
         });
       } catch (error) {
@@ -569,14 +422,13 @@ app.get("/api/products", async (req, res) => {
       }
     });
 
-//   
-
     // ORDERS
     app.post("/api/orders", async (req, res) => {
       try {
         const result = await ordersCollection.insertOne({
           ...req.body,
           createdAt: new Date(),
+          updatedAt: new Date(),
         });
 
         res.json({
@@ -589,83 +441,77 @@ app.get("/api/products", async (req, res) => {
       }
     });
 
-app.post("/api/orders/stripe-success", async (req, res) => {
-  try {
-    const {
-      buyerInfo,
-      sellerInfo,
-      productInfo,
-      paymentStatus,
-      orderStatus,
-      transactionId,
-      stripeSessionId,
-      stripePaymentIntentId,
-    } = req.body;
+    app.post("/api/orders/stripe-success", async (req, res) => {
+      try {
+        const {
+          buyerInfo,
+          sellerInfo,
+          productInfo,
+          paymentStatus,
+          orderStatus,
+          transactionId,
+          stripeSessionId,
+          stripePaymentIntentId,
+        } = req.body;
 
-    if (!stripeSessionId) {
-      return res.status(400).json({
-        success: false,
-        message: "Stripe session id missing",
-      });
-    }
+        if (!stripeSessionId) {
+          return res.status(400).json({
+            success: false,
+            message: "Stripe session id missing",
+          });
+        }
 
-    const existingOrder = await ordersCollection.findOne({
-      stripeSessionId,
+        const existingOrder = await ordersCollection.findOne({
+          stripeSessionId,
+        });
+
+        if (existingOrder) {
+          return res.json({
+            success: true,
+            message: "Order already exists",
+            orderId: existingOrder._id,
+          });
+        }
+
+        const quantity = Number(productInfo?.quantity || 1);
+        const unitPrice = Number(productInfo?.price || 0);
+        const totalPrice = unitPrice * quantity;
+
+        const result = await ordersCollection.insertOne({
+          buyerInfo,
+          sellerInfo,
+          productInfo: {
+            ...productInfo,
+            condition: Array.isArray(productInfo?.condition)
+              ? productInfo.condition.join("")
+              : productInfo?.condition,
+          },
+          quantity,
+          unitPrice,
+          totalPrice,
+          paymentStatus: paymentStatus || "paid",
+          orderStatus: orderStatus || "processing",
+          transactionId,
+          stripeSessionId,
+          stripePaymentIntentId,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+        res.json({
+          success: true,
+          message: "Order saved successfully",
+          orderId: result.insertedId,
+          insertedId: result.insertedId,
+        });
+      } catch (error) {
+        console.error("Stripe success order save error:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
-
-    if (existingOrder) {
-      return res.json({
-        success: true,
-        message: "Order already exists",
-        orderId: existingOrder._id,
-      });
-    }
-
-    const quantity = Number(productInfo?.quantity || 1);
-    const unitPrice = Number(productInfo?.price || 0);
-    const totalPrice = unitPrice * quantity;
-
-    const result = await ordersCollection.insertOne({
-      buyerInfo,
-      sellerInfo,
-
-      productInfo: {
-        ...productInfo,
-        condition: Array.isArray(productInfo?.condition)
-          ? productInfo.condition.join("")
-          : productInfo?.condition,
-      },
-
-      quantity,
-      unitPrice,
-      totalPrice,
-
-      paymentStatus: paymentStatus || "paid",
-      orderStatus: orderStatus || "processing",
-
-      transactionId,
-
-      stripeSessionId,
-      stripePaymentIntentId,
-
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
-
-    res.json({
-      success: true,
-      message: "Order saved successfully",
-      orderId: result.insertedId,
-    });
-  } catch (error) {
-    console.error("Stripe success order save error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
 
     app.get("/api/orders/buyer/:email", async (req, res) => {
       try {
@@ -694,556 +540,468 @@ app.post("/api/orders/stripe-success", async (req, res) => {
       }
     });
 
+    app.get("/api/orders/seller/:email", async (req, res) => {
+      try {
+        const email = decodeURIComponent(req.params.email);
 
-    // GET all buyer orders
-app.get("/api/orders/buyer/:email", async (req, res) => {
-  try {
-    const email = decodeURIComponent(req.params.email);
+        const orders = await ordersCollection
+          .find({
+            "sellerInfo.email": {
+              $regex: `^${email}$`,
+              $options: "i",
+            },
+          })
+          .sort({ createdAt: -1 })
+          .toArray();
 
-    const orders = await ordersCollection
-      .find({ "buyerInfo.email": { $regex: `^${email}$`, $options: "i" } })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message, orders: [] });
-  }
-});
-
-
-app.get("/api/orders/seller/:email", async (req, res) => {
-  try {
-    const email = decodeURIComponent(req.params.email).trim();
-
-    console.log("SELLER ORDER EMAIL:", email);
-
-    const orders = await ordersCollection
-      .find({
-        "sellerInfo.email": {
-          $regex: `^${email}$`,
-          $options: "i",
-        },
-      })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    console.log("SELLER ORDERS FOUND:", orders.length);
-
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-      orders: [],
-    });
-  }
-});
-
-// GET single order details
-app.get("/api/orders/:id", async (req, res) => {
-  try {
-    const id = req.params.id;
-
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order id" });
-    }
-
-    const order = await ordersCollection.findOne({ _id: new ObjectId(id) });
-
-    res.json({ success: true, order });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Cancel order before shipment
-app.patch("/api/orders/:id/cancel", async (req, res) => {
-  try {
-    const id = req.params.id;
-
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order id" });
-    }
-
-    const order = await ordersCollection.findOne({ _id: new ObjectId(id) });
-
-    if (!order) {
-      return res.status(404).json({ success: false, message: "Order not found" });
-    }
-
-    if (["shipped", "delivered"].includes(order.orderStatus)) {
-      return res.json({
-        success: false,
-        message: "You cannot cancel after shipment",
-      });
-    }
-
-    await ordersCollection.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          orderStatus: "cancelled",
-          cancelledAt: new Date(),
-          updatedAt: new Date(),
-        },
+        res.json({
+          success: true,
+          orders,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+          orders: [],
+        });
       }
-    );
-
-    res.json({ success: true, message: "Order cancelled successfully" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-app.get("/api/orders/seller/:email", async (req, res) => {
-  try {
-    const email = decodeURIComponent(req.params.email);
-
-    const orders = await ordersCollection
-      .find({
-        "sellerInfo.email": {
-          $regex: `^${email}$`,
-          $options: "i",
-        },
-      })
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    res.json({
-      success: true,
-      orders,
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-      orders: [],
-    });
-  }
-});
 
+    app.get("/api/orders/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
 
-
-app.patch("/api/orders/:id/status", async (req, res) => {
-  try {
-    const { status } = req.body;
-
-    const result = await ordersCollection.updateOne(
-      { _id: new ObjectId(req.params.id) },
-      {
-        $set: {
-          orderStatus: status,
-          updatedAt: new Date(),
-        },
-      }
-    );
-
-    res.json({
-      success: true,
-      modifiedCount: result.modifiedCount,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.get("/api/admin/stats", async (req, res) => {
-  try {
-    const totalUsers = await usersCollection.countDocuments();
-    const totalProducts = await productsCollection.countDocuments();
-    const totalOrders = await ordersCollection.countDocuments();
-
-    res.json({
-      success: true,
-      totalUsers,
-      totalProducts,
-      totalOrders,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Failed to load admin stats",
-    });
-  }
-});
-
-// ADMIN - GET ALL USERS
-app.get("/api/admin/users", async (req, res) => {
-  try {
-    const { search = "" } = req.query;
-
-    const query = search
-      ? {
-          $or: [
-            { name: { $regex: search, $options: "i" } },
-            { email: { $regex: search, $options: "i" } },
-            { role: { $regex: search, $options: "i" } },
-            { status: { $regex: search, $options: "i" } },
-          ],
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid order id",
+          });
         }
-      : {};
 
-    const users = await usersCollection
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray();
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(id),
+        });
 
-    res.json({ success: true, users });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message, users: [] });
-  }
-});
-
-// ADMIN - UPDATE USER STATUS
-app.patch("/api/admin/users/:id/status", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid user id" });
-    }
-
-    const result = await usersCollection.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          status,
-          updatedAt: new Date(),
-        },
+        res.json({
+          success: true,
+          order,
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
       }
-    );
-
-    res.json({
-      success: result.modifiedCount > 0,
-      message: "User status updated",
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ADMIN - DELETE USER
-app.delete("/api/admin/users/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid user id" });
-    }
-
-    const result = await usersCollection.deleteOne({
-      _id: new ObjectId(id),
     });
 
-    res.json({
-      success: result.deletedCount > 0,
-      message: "User deleted successfully",
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
+    app.patch("/api/orders/:id/cancel", async (req, res) => {
+      try {
+        const id = req.params.id;
 
-// ADMIN - GET ALL PRODUCTS
-app.get("/api/admin/products", async (req, res) => {
-  try {
-    const { search = "", status = "all" } = req.query;
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid order id",
+          });
+        }
 
-    const query = {};
+        const order = await ordersCollection.findOne({
+          _id: new ObjectId(id),
+        });
 
-    if (status !== "all") {
-      query.status = status;
-    }
+        if (!order) {
+          return res.status(404).json({
+            success: false,
+            message: "Order not found",
+          });
+        }
 
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { category: { $regex: search, $options: "i" } },
-        { "sellerInfo.email": { $regex: search, $options: "i" } },
-      ];
-    }
+        if (["shipped", "delivered"].includes(order.orderStatus)) {
+          return res.json({
+            success: false,
+            message: "You cannot cancel after shipment",
+          });
+        }
 
-    const products = await productsCollection
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray();
+        await ordersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              orderStatus: "cancelled",
+              cancelledAt: new Date(),
+              updatedAt: new Date(),
+            },
+          }
+        );
 
-    res.json({ success: true, products });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message, products: [] });
-  }
-});
-
-// ADMIN - UPDATE PRODUCT STATUS
-app.patch("/api/admin/products/:id/status", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body; // approved / rejected
-
-    const result = await productsCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { status, updatedAt: new Date() } }
-    );
-
-    res.json({
-      success: result.modifiedCount > 0,
-      message: "Product status updated",
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// ADMIN - DELETE PRODUCT
-app.delete("/api/admin/products/:id", async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await productsCollection.deleteOne({
-      _id: new ObjectId(id),
-    });
-
-    res.json({
-      success: result.deletedCount > 0,
-      message: "Product deleted successfully",
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-// ADMIN - GET ALL ORDERS
-app.get("/api/admin/orders", async (req, res) => {
-  try {
-    const { search = "", status = "all" } = req.query;
-
-    const query = {};
-
-    if (status !== "all") {
-      query.status = status;
-    }
-
-    if (search) {
-      query.$or = [
-        { "buyerInfo.name": { $regex: search, $options: "i" } },
-        { "buyerInfo.email": { $regex: search, $options: "i" } },
-        { "sellerInfo.name": { $regex: search, $options: "i" } },
-        { "sellerInfo.email": { $regex: search, $options: "i" } },
-        { "productInfo.title": { $regex: search, $options: "i" } },
-      ];
-    }
-
-    const orders = await ordersCollection
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    res.json({ success: true, orders });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message, orders: [] });
-  }
-});
-
-// ADMIN - UPDATE ORDER STATUS
-// app.patch("/api/admin/orders/:id/status", async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { status } = req.body;
-
-//     const result = await ordersCollection.updateOne(
-//       { _id: new ObjectId(id) },
-//       {
-//         $set: {
-//           status,
-//           updatedAt: new Date(),
-//           updatedBy: "admin",
-//         },
-//       }
-//     );
-
-//     res.json({
-//       success: result.modifiedCount > 0,
-//       message: "Order status updated",
-//     });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-// app.patch("/api/admin/orders/:id/status", async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const { orderStatus } = req.body;
-
-//     const result = await ordersCollection.updateOne(
-//       { _id: new ObjectId(id) },
-//       {
-//         $set: {
-//           orderStatus,
-//           updatedAt: new Date(),
-//           updatedBy: "admin",
-//         },
-//       }
-//     );
-
-//     res.json({
-//       success: result.modifiedCount > 0,
-//       message: "Order status updated",
-//     });
-//   } catch (error) {
-//     res.status(500).json({ success: false, message: error.message });
-//   }
-// });
-
-app.patch("/api/admin/orders/:id/status", async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { orderStatus } = req.body;
-
-    if (!ObjectId.isValid(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid order id",
-      });
-    }
-
-    const result = await ordersCollection.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          orderStatus,
-          updatedAt: new Date(),
-          updatedBy: "admin",
-        },
+        res.json({
+          success: true,
+          message: "Order cancelled successfully",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
       }
-    );
-
-    res.json({
-      success: result.modifiedCount > 0,
-      message: "Order status updated",
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-
-app.get("/api/admin/transactions", async (req, res) => {
-  try {
-    const { search = "", status = "all" } = req.query;
-
-    let query = {};
-
-    if (status !== "all") {
-      query.paymentStatus = status;
-    }
-
-    const transactions = await ordersCollection
-      .find(query)
-      .sort({ createdAt: -1 })
-      .toArray();
-
-    const filtered = transactions.filter((item) => {
-      const keyword = search.toLowerCase();
-
-      return (
-        item?.buyerInfo?.name?.toLowerCase().includes(keyword) ||
-        item?.buyerInfo?.email?.toLowerCase().includes(keyword) ||
-        item?.sellerInfo?.name?.toLowerCase().includes(keyword) ||
-        item?.sellerInfo?.email?.toLowerCase().includes(keyword) ||
-        item?.stripePaymentIntentId?.toLowerCase().includes(keyword)
-      );
     });
 
-    const totalRevenue = filtered.reduce(
-      (sum, item) => sum + Number(item.totalPrice || item.productInfo?.price || 0),
-      0
-    );
+    app.patch("/api/orders/:id/status", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const { status } = req.body;
 
-    res.send({
-      success: true,
-      transactions: filtered,
-      totalRevenue,
-      totalTransactions: filtered.length,
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid order id",
+          });
+        }
+
+        const result = await ordersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              orderStatus: status,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: result.matchedCount > 0,
+          modifiedCount: result.modifiedCount,
+          message:
+            result.matchedCount > 0
+              ? "Order status updated"
+              : "Order not found",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
     });
-  } catch (error) {
-    res.status(500).send({
-      success: false,
-      message: error.message,
-    });
-  }
-});
 
-app.post("/api/orders/stripe-success", async (req, res) => {
-  try {
-    const {
-      buyerInfo,
-      sellerInfo,
-      productInfo,
-      paymentStatus,
-      orderStatus,
-      transactionId,
-      stripeSessionId,
-      stripePaymentIntentId,
-    } = req.body;
+    // ADMIN
+    app.get("/api/admin/stats", async (req, res) => {
+      try {
+        const totalUsers = await usersCollection.countDocuments();
+        const totalProducts = await productsCollection.countDocuments();
+        const totalOrders = await ordersCollection.countDocuments();
 
-    const existingOrder = await ordersCollection.findOne({
-      stripeSessionId,
+        res.json({
+          success: true,
+          totalUsers,
+          totalProducts,
+          totalOrders,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Failed to load admin stats",
+        });
+      }
     });
 
-    if (existingOrder) {
-      return res.send({
-        success: true,
-        message: "Order already saved",
-        orderId: existingOrder._id,
-      });
-    }
+    app.get("/api/admin/users", async (req, res) => {
+      try {
+        const { search = "" } = req.query;
 
-    const quantity = Number(productInfo?.quantity || 1);
-    const unitPrice = Number(productInfo?.price || 0);
-    const totalPrice = unitPrice * quantity;
+        const query = search
+          ? {
+              $or: [
+                { name: { $regex: search, $options: "i" } },
+                { email: { $regex: search, $options: "i" } },
+                { role: { $regex: search, $options: "i" } },
+                { status: { $regex: search, $options: "i" } },
+              ],
+            }
+          : {};
 
-    const order = {
-      buyerInfo,
-      sellerInfo,
-      productInfo,
+        const users = await usersCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .toArray();
 
-      quantity,
-      unitPrice,
-      totalPrice,
-
-      paymentStatus: paymentStatus || "paid",
-      orderStatus: orderStatus || "processing",
-
-      transactionId,
-      stripeSessionId,
-      stripePaymentIntentId,
-
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    const result = await ordersCollection.insertOne(order);
-
-    res.send({
-      success: true,
-      message: "Order saved successfully",
-      insertedId: result.insertedId,
+        res.json({ success: true, users });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+          users: [],
+        });
+      }
     });
-  } catch (error) {
-    res.status(500).send({
-      success: false,
-      message: error.message,
+
+    app.patch("/api/admin/users/:id/status", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user id",
+          });
+        }
+
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              status,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: result.matchedCount > 0,
+          message:
+            result.matchedCount > 0 ? "User status updated" : "User not found",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
     });
-  }
-});
+
+    app.delete("/api/admin/users/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid user id",
+          });
+        }
+
+        const result = await usersCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.json({
+          success: result.deletedCount > 0,
+          message:
+            result.deletedCount > 0
+              ? "User deleted successfully"
+              : "User not found",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.get("/api/admin/products", async (req, res) => {
+      try {
+        const { search = "", status = "all" } = req.query;
+
+        const query = {};
+
+        if (status !== "all") {
+          query.status = status;
+        }
+
+        if (search) {
+          query.$or = [
+            { title: { $regex: search, $options: "i" } },
+            { category: { $regex: search, $options: "i" } },
+            { "sellerInfo.email": { $regex: search, $options: "i" } },
+            { "sellerInfo.name": { $regex: search, $options: "i" } },
+          ];
+        }
+
+        const products = await productsCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.json({ success: true, products });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+          products: [],
+        });
+      }
+    });
+
+    app.patch("/api/admin/products/:id/status", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product id",
+          });
+        }
+
+        const result = await productsCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              status,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        res.json({
+          success: result.matchedCount > 0,
+          message:
+            result.matchedCount > 0
+              ? "Product status updated"
+              : "Product not found",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.delete("/api/admin/products/:id", async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid product id",
+          });
+        }
+
+        const result = await productsCollection.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        res.json({
+          success: result.deletedCount > 0,
+          message:
+            result.deletedCount > 0
+              ? "Product deleted successfully"
+              : "Product not found",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.get("/api/admin/orders", async (req, res) => {
+      try {
+        const { search = "", status = "all" } = req.query;
+
+        const query = {};
+
+        if (status !== "all") {
+          query.orderStatus = status;
+        }
+
+        if (search) {
+          query.$or = [
+            { "buyerInfo.name": { $regex: search, $options: "i" } },
+            { "buyerInfo.email": { $regex: search, $options: "i" } },
+            { "sellerInfo.name": { $regex: search, $options: "i" } },
+            { "sellerInfo.email": { $regex: search, $options: "i" } },
+            { "productInfo.title": { $regex: search, $options: "i" } },
+          ];
+        }
+
+        const orders = await ordersCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.json({ success: true, orders });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+          orders: [],
+        });
+      }
+    });
+
+    app.patch("/api/admin/orders/:id/status", async (req, res) => {
+      try {
+        const { id } = req.params;
+        const { orderStatus } = req.body;
+
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid order id",
+          });
+        }
+
+        const result = await ordersCollection.updateOne(
+          { _id: new ObjectId(id) },
+          {
+            $set: {
+              orderStatus,
+              updatedAt: new Date(),
+              updatedBy: "admin",
+            },
+          }
+        );
+
+        res.json({
+          success: result.matchedCount > 0,
+          message:
+            result.matchedCount > 0
+              ? "Order status updated"
+              : "Order not found",
+        });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    });
+
+    app.get("/api/admin/transactions", async (req, res) => {
+      try {
+        const { search = "", status = "all" } = req.query;
+
+        const query = {};
+
+        if (status !== "all") {
+          query.paymentStatus = status;
+        }
+
+        const transactions = await ordersCollection
+          .find(query)
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        const keyword = search.toLowerCase();
+
+        const filtered = transactions.filter((item) => {
+          if (!keyword) return true;
+
+          return (
+            item?.buyerInfo?.name?.toLowerCase().includes(keyword) ||
+            item?.buyerInfo?.email?.toLowerCase().includes(keyword) ||
+            item?.sellerInfo?.name?.toLowerCase().includes(keyword) ||
+            item?.sellerInfo?.email?.toLowerCase().includes(keyword) ||
+            item?.stripePaymentIntentId?.toLowerCase().includes(keyword) ||
+            item?.transactionId?.toLowerCase().includes(keyword)
+          );
+        });
+
+        const totalRevenue = filtered.reduce(
+          (sum, item) =>
+            sum + Number(item.totalPrice || item.productInfo?.price || 0),
+          0
+        );
+
+        res.json({
+          success: true,
+          transactions: filtered,
+          totalRevenue,
+          totalTransactions: filtered.length,
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    });
 
     console.log("✅ Connected to MongoDB Successfully");
   } catch (error) {
