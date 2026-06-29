@@ -1011,9 +1011,6 @@ app.get("/api/products", async (req, res) => {
 
 run();
 
-app.get("/api/products", async (req, res) => {
-  res.json({ message: "products route working" });
-});
 
 app.listen(port, () => {
   console.log(`🚀 NextOwner Server running on port ${port}`);
