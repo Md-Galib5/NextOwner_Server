@@ -5,7 +5,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
@@ -1010,6 +1010,10 @@ app.get("/api/products", async (req, res) => {
 }
 
 run();
+
+app.get("/api/products", async (req, res) => {
+  res.json({ message: "products route working" });
+});
 
 app.listen(port, () => {
   console.log(`🚀 NextOwner Server running on port ${port}`);
