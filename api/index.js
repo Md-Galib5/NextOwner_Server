@@ -1,14 +1,12 @@
-
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
-require("dotenv").config();
 
 const app = express();
-const port = process.env.PORT;
 
 app.use(cors());
 app.use(express.json());
+
+// move all your routes here
 
 app.get("/", (req, res) => {
   res.send("NextOwner API Running...");
@@ -1009,10 +1007,4 @@ app.get("/api/products", async (req, res) => {
   }
 }
 
-run();
-
-
-
-app.listen(port, () => {
-  console.log(`🚀 NextOwner Server running on port ${port}`);
-});
+module.exports = app;
