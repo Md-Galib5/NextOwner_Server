@@ -139,74 +139,115 @@ async function run() {
       }
     });
 
-    app.get("/api/products", async (req, res) => {
-      try {
-        const {
-          page = 1,
-          limit = 6,
-          search = "",
-          category = "all",
-          sort = "latest",
-        } = req.query;
+    // app.get("/api/products", async (req, res) => {
+    //   try {
+    //     const {
+    //       page = 1,
+    //       limit = 6,
+    //       search = "",
+    //       category = "all",
+    //       sort = "latest",
+    //     } = req.query;
 
-        const currentPage = Math.max(Number(page) || 1, 1);
-        const perPage = Math.max(Number(limit) || 6, 1);
-        const skip = (currentPage - 1) * perPage;
+    //     const currentPage = Math.max(Number(page) || 1, 1);
+    //     const perPage = Math.max(Number(limit) || 6, 1);
+    //     const skip = (currentPage - 1) * perPage;
 
-        const query = {
-          status: { $in: ["approved", "available"] },
-        };
+    //     const query = {
+    //       status: { $in: ["approved", "available"] },
+    //     };
 
-        if (search) {
-          query.$or = [
-            { title: { $regex: search, $options: "i" } },
-            { category: { $regex: search, $options: "i" } },
-            { description: { $regex: search, $options: "i" } },
-            { "sellerInfo.name": { $regex: search, $options: "i" } },
-          ];
-        }
+    //     if (search) {
+    //       query.$or = [
+    //         { title: { $regex: search, $options: "i" } },
+    //         { category: { $regex: search, $options: "i" } },
+    //         { description: { $regex: search, $options: "i" } },
+    //         { "sellerInfo.name": { $regex: search, $options: "i" } },
+    //       ];
+    //     }
 
-        if (category !== "all") {
-          query.category = category;
-        }
+    //     if (category !== "all") {
+    //       query.category = category;
+    //     }
 
-        let sortOption = { createdAt: -1 };
+    //     let sortOption = { createdAt: -1 };
 
-        if (sort === "oldest") sortOption = { createdAt: 1 };
-        if (sort === "price-low") sortOption = { price: 1 };
-        if (sort === "price-high") sortOption = { price: -1 };
+    //     if (sort === "oldest") sortOption = { createdAt: 1 };
+    //     if (sort === "price-low") sortOption = { price: 1 };
+    //     if (sort === "price-high") sortOption = { price: -1 };
 
-        const totalProducts = await productsCollection.countDocuments(query);
-        const totalPages = Math.max(Math.ceil(totalProducts / perPage), 1);
+    //     const totalProducts = await productsCollection.countDocuments(query);
+    //     const totalPages = Math.max(Math.ceil(totalProducts / perPage), 1);
 
-        const products = await productsCollection
-          .find(query)
-          .sort(sortOption)
-          .skip(skip)
-          .limit(perPage)
-          .toArray();
+    //     const products = await productsCollection
+    //       .find(query)
+    //       .sort(sortOption)
+    //       .skip(skip)
+    //       .limit(perPage)
+    //       .toArray();
 
-        res.json({
-          success: true,
-          products,
-          pagination: {
-            currentPage,
-            totalPages,
-            totalProducts,
-            limit: perPage,
-            hasPrevPage: currentPage > 1,
-            hasNextPage: currentPage < totalPages,
-          },
-        });
-      } catch (error) {
-        console.error("GET PRODUCTS ERROR:", error);
-        res.status(500).json({
-          success: false,
-          message: "Failed to get products",
-          error: error.message,
-        });
-      }
+    //     res.json({
+    //       success: true,
+    //       products,
+    //       pagination: {
+    //         currentPage,
+    //         totalPages,
+    //         totalProducts,
+    //         limit: perPage,
+    //         hasPrevPage: currentPage > 1,
+    //         hasNextPage: currentPage < totalPages,
+    //       },
+    //     });
+    //   } catch (error) {
+    //     console.error("GET PRODUCTS ERROR:", error);
+    //     res.status(500).json({
+    //       success: false,
+    //       message: "Failed to get products",
+    //       error: error.message,
+    //     });
+    //   }
+    // });
+app.get("/api/products", async (req, res) => {
+  try {
+    const { search = "", category = "all", sort = "latest" } = req.query;
+
+    const query = {
+      status: { $in: ["approved", "available"] },
+    };
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { "sellerInfo.name": { $regex: search, $options: "i" } },
+      ];
+    }
+
+    if (category !== "all") {
+      query.category = category;
+    }
+
+    let sortOption = { createdAt: -1 };
+
+    if (sort === "oldest") sortOption = { createdAt: 1 };
+    if (sort === "price-low") sortOption = { price: 1 };
+    if (sort === "price-high") sortOption = { price: -1 };
+
+    const products = await productsCollection
+      .find(query)
+      .sort(sortOption)
+      .toArray();
+
+    res.json(products);
+  } catch (error) {
+    console.error("GET PRODUCTS ERROR:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message,
     });
+  }
+});
 
     app.get("/api/products/seller/:email", async (req, res) => {
       try {
