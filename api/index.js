@@ -207,6 +207,51 @@ app.delete("/api/users/:id", async (req, res) => {
   }
 });
 
+app.post("/api/users/google", async (req, res) => {
+  try {
+    const { name, email, photo, role } = req.body;
+
+    if (!email) {
+      return res.status(400).send({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    const result = await usersCollection.updateOne(
+      { email },
+      {
+        $setOnInsert: {
+          email,
+          emailVerified: true,
+          createdAt: new Date(),
+          buyerProfileCompleted: false,
+          sellerProfileCompleted: false,
+        },
+        $set: {
+          name,
+          photo,
+          role: role || "buyer",
+          status: "active",
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true }
+    );
+
+    res.send({
+      success: true,
+      message: "Google user saved",
+      result,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 // PRODUCTS CRUD
 app.post("/api/products", async (req, res) => {
   try {
