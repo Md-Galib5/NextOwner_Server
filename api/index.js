@@ -37,12 +37,13 @@ async function connectDB() {
 async function collections() {
   const db = await connectDB();
 
-  return {
-    usersCollection: db.collection("user"),
-    productsCollection: db.collection("products"),
-    wishlistCollection: db.collection("wishlist"),
-    ordersCollection: db.collection("orders"),
-  };
+ return {
+  usersCollection: db.collection("user"),
+  productsCollection: db.collection("products"),
+  wishlistCollection: db.collection("wishlist"),
+  ordersCollection: db.collection("orders"),
+  reviewsCollection: db.collection("reviews"),
+};
 }
 
 app.get("/", (req, res) => {
@@ -1093,6 +1094,89 @@ app.get("/api/admin/transactions", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get("/api/statistics", async (req, res) => {
+  try {
+    const { productsCollection, usersCollection, ordersCollection } =
+      await collections();
+
+    const totalProducts = await productsCollection.countDocuments();
+
+    const totalSellers = await usersCollection.countDocuments({
+      role: "seller",
+    });
+
+    const totalBuyers = await usersCollection.countDocuments({
+      role: "buyer",
+    });
+
+    const completedOrders = await ordersCollection.countDocuments({
+      orderStatus: "delivered",
+    });
+
+    res.json({
+      success: true,
+      statistics: {
+        totalProducts,
+        totalSellers,
+        totalBuyers,
+        completedOrders,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      statistics: {
+        totalProducts: 0,
+        totalSellers: 0,
+        totalBuyers: 0,
+        completedOrders: 0,
+      },
+    });
+  }
+});
+
+app.post("/api/reviews", async (req, res) => {
+  try {
+    const { reviewsCollection } = await collections();
+
+    const review = req.body;
+
+    const result = await reviewsCollection.insertOne({
+      ...review,
+      createdAt: new Date(),
+    });
+
+    res.send({
+      success: true,
+      insertedId: result.insertedId,
+    });
+  } catch (error) {
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+app.get("/api/reviews/:productId", async (req, res) => {
+  try {
+    const { reviewsCollection } = await collections();
+
+    const { productId } = req.params;
+
+    const reviews = await reviewsCollection
+      .find({ productId })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.send(reviews);
+  } catch (error) {
+    res.status(500).send([]);
   }
 });
 
