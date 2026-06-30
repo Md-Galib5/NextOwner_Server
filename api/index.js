@@ -311,6 +311,30 @@ app.get("/api/products", async (req, res) => {
   }
 });
 
+app.get("/api/products/featured", async (req, res) => {
+  try {
+    const { productsCollection } = await collections();
+
+    const products = await productsCollection
+      .find({})
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .toArray();
+
+    res.json({
+      success: true,
+      products,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to get featured products",
+      error: error.message,
+      products: [],
+    });
+  }
+});
+
 app.get("/api/products/seller/:email", async (req, res) => {
   try {
     const { productsCollection } = await collections();
@@ -342,6 +366,55 @@ app.get("/api/products/seller/:email", async (req, res) => {
     res.json(products);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+app.get("/api/categories/popular", async (req, res) => {
+  try {
+    const { productsCollection } = await collections();
+
+    const categoryImages = {
+      Sports: "https://images.pexels.com/photos/863988/pexels-photo-863988.jpeg",
+      Books: "https://images.pexels.com/photos/159711/books-bookstore-book-reading-159711.jpeg",
+      Furniture: "https://images.pexels.com/photos/276583/pexels-photo-276583.jpeg",
+      Computers: "https://images.pexels.com/photos/18105/pexels-photo.jpg",
+      Cameras: "https://images.pexels.com/photos/90946/pexels-photo-90946.jpeg",
+      Electronics: "https://images.pexels.com/photos/356056/pexels-photo-356056.jpeg",
+      Fashion: "https://images.pexels.com/photos/934070/pexels-photo-934070.jpeg",
+      Vehicles: "https://images.pexels.com/photos/210019/pexels-photo-210019.jpeg",
+      "Mobile Phones": "https://images.pexels.com/photos/607812/pexels-photo-607812.jpeg",
+      Default: "https://images.pexels.com/photos/5632402/pexels-photo-5632402.jpeg",
+    };
+
+    const categories = await productsCollection
+      .aggregate([
+        {
+          $group: {
+            _id: "$category",
+            totalProducts: { $sum: 1 },
+          },
+        },
+        { $sort: { totalProducts: -1 } },
+        { $limit: 5 },
+      ])
+      .toArray();
+
+    const formattedCategories = categories.map((category) => ({
+      name: category._id,
+      totalProducts: category.totalProducts,
+      image: categoryImages[category._id] || categoryImages.Default,
+    }));
+
+    res.json({
+      success: true,
+      categories: formattedCategories,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Failed to get popular categories",
+      categories: [],
+    });
   }
 });
 
